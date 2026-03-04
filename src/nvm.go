@@ -209,6 +209,87 @@ func main() {
 		setup()
 	}
 
+	// ==========================================
+	// NVM Drop-In Proxy and Version Routing
+	// ==========================================
+	nativeCmds := map[string]bool{
+		"i": true, "install": true, "rm": true, "uninstall": true, "reinstall": true,
+		"u": true, "use": true, "ls": true, "list": true, "on": true, "off": true,
+		"root": true, "v": true, "--version": true, "-version": true, "--v": true, "-v": true,
+		"version": true, "arch": true, "proxy": true, "current": true, "node_mirror": true,
+		"npm_mirror": true, "debug": true, "subscribe": true, "unsubscribe": true,
+		"author": true, "upgrade": true,
+	}
+
+	if !nativeCmds[args[1]] {
+		match, _ := regexp.MatchString(`^@?(v?\d+\.\d+\.\d+)$`, args[1])
+		if match {
+			version := strings.Replace(args[1], "@", "", 1)
+			if !strings.HasPrefix(version, "v") {
+				version = "v" + version
+			}
+
+			binDir := filepath.Join(env.root, version)
+			if _, err := os.Stat(filepath.Join(binDir, "node.exe")); os.IsNotExist(err) {
+				fmt.Printf("Node version %s is not installed in NVM (%s\\node.exe not found).\n", version, binDir)
+				return
+			}
+
+			forwardArgs := []string{}
+			if len(args) > 2 {
+				forwardArgs = args[2:]
+			}
+
+			if len(forwardArgs) > 0 {
+				tool := forwardArgs[0]
+				matched, _ := regexp.MatchString(`^(npm|npx|pnpm|pnpx|yarn)$`, tool)
+				if matched {
+					toolCmd := tool + ".cmd"
+					toolArgs := []string{}
+					if len(forwardArgs) > 1 {
+						toolArgs = forwardArgs[1:]
+					}
+
+					oldPath := os.Getenv("PATH")
+					os.Setenv("PATH", binDir+";"+oldPath)
+
+					cmd := exec.Command(toolCmd, toolArgs...)
+					cmd.Stdout = os.Stdout
+					cmd.Stderr = os.Stderr
+					cmd.Stdin = os.Stdin
+					cmd.Run()
+
+					os.Setenv("PATH", oldPath)
+					return
+				}
+
+				cmd := exec.Command(filepath.Join(binDir, "node.exe"), forwardArgs...)
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				cmd.Stdin = os.Stdin
+				cmd.Run()
+				return
+			}
+
+			// Launch node REPL in isolated version context
+			cmd := exec.Command(filepath.Join(binDir, "node.exe"))
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+			cmd.Run()
+			return
+		}
+
+		// Fallback drop-in node execution
+		cmd := exec.Command("node", args[1:]...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+		cmd.Run()
+		return
+	}
+	// ==========================================
+
 	// Run the appropriate method
 	switch args[1] {
 	case "i":
